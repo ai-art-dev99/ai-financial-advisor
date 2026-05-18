@@ -43,6 +43,7 @@ services/*/alembic/versions/*.py
 
 # Terraform
 infrastructure/terraform/.terraform/
+infrastructure/terraform/*.tfvars
 infrastructure/terraform/*.tfstate
 infrastructure/terraform/*.tfstate.backup
 infrastructure/terraform/.terraform.lock.hcl
