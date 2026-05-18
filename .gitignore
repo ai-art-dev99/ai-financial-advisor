@@ -42,7 +42,7 @@ logs/
 services/*/alembic/versions/*.py
 
 # Terraform
-**/.terraform/
-*.tfstate
-*.tfstate.backup
-.terraform.lock.hcl
+infrastructure/terraform/.terraform/
+infrastructure/terraform/*.tfstate
+infrastructure/terraform/*.tfstate.backup
+infrastructure/terraform/.terraform.lock.hcl
