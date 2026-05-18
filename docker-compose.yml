@@ -1,0 +1,253 @@
+version: '3.9'
+
+services:
+  # ─── API Gateway ───────────────────────────────────────────────
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: robo_nginx
+    ports:
+      - "8080:80"
+    volumes:
+      - ./services/api-gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - auth
+      - portfolio
+      - market-data
+    networks:
+      - robo_net
+    restart: unless-stopped
+
+  # ─── Auth Service ──────────────────────────────────────────────
+  auth:
+    build:
+      context: ./services/auth
+      dockerfile: Dockerfile
+    container_name: robo_auth
+    env_file: .env
+    environment:
+      - DATABASE_URL=postgresql://robo_user:${POSTGRES_PASSWORD}@postgres:5432/robo_auth
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - robo_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ─── Portfolio Service ─────────────────────────────────────────
+  portfolio:
+    build:
+      context: ./services/portfolio
+      dockerfile: Dockerfile
+    container_name: robo_portfolio
+    env_file: .env
+    environment:
+      - DATABASE_URL=postgresql://robo_user:${POSTGRES_PASSWORD}@postgres:5432/robo_portfolio
+      - TIMESCALE_URL=postgresql://robo_user:${POSTGRES_PASSWORD}@timescale:5432/robo_market
+      - REDIS_URL=redis://redis:6379/1
+      - AUTH_SERVICE_URL=http://auth:8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      timescale:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - robo_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ─── Market Data Worker ────────────────────────────────────────
+  market-data:
+    build:
+      context: ./services/market-data
+      dockerfile: Dockerfile
+    container_name: robo_market
+    env_file: .env
+    environment:
+      - TIMESCALE_URL=postgresql://robo_user:${POSTGRES_PASSWORD}@timescale:5432/robo_market
+      - REDIS_URL=redis://redis:6379/2
+      - CELERY_BROKER_URL=redis://redis:6379/3
+      - CELERY_RESULT_BACKEND=redis://redis:6379/4
+    depends_on:
+      timescale:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - robo_net
+    restart: unless-stopped
+
+  market-data-beat:
+    build:
+      context: ./services/market-data
+      dockerfile: Dockerfile
+    container_name: robo_market_beat
+    command: celery -A celery_app beat --loglevel=info
+    env_file: .env
+    environment:
+      - TIMESCALE_URL=postgresql://robo_user:${POSTGRES_PASSWORD}@timescale:5432/robo_market
+      - REDIS_URL=redis://redis:6379/2
+      - CELERY_BROKER_URL=redis://redis:6379/3
+      - CELERY_RESULT_BACKEND=redis://redis:6379/4
+    depends_on:
+      - market-data
+    networks:
+      - robo_net
+    restart: unless-stopped
+
+  # ─── Frontend ──────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./services/frontend
+      dockerfile: Dockerfile
+    container_name: robo_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost/api
+    networks:
+      - robo_net
+    restart: unless-stopped
+
+  # ─── Databases ─────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: robo_postgres
+    environment:
+      - POSTGRES_USER=robo_user
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_MULTIPLE_DATABASES=robo_auth,robo_portfolio
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./infrastructure/postgres/create-multiple-dbs.sh:/docker-entrypoint-initdb.d/00-create-dbs.sh:ro
+    networks:
+      - robo_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U robo_user -d robo_auth"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  timescale:
+    image: timescale/timescaledb:latest-pg16
+    container_name: robo_timescale
+    environment:
+      - POSTGRES_USER=robo_user
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=robo_market
+    volumes:
+      - tsdata:/var/lib/postgresql/data
+      - ./infrastructure/postgres/timescale-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    networks:
+      - robo_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U robo_user -d robo_market"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: robo_redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redisdata:/data
+    networks:
+      - robo_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Monitoring ────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: robo_prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - robo_net
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: robo_grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafanadata:/var/lib/grafana
+    networks:
+      - robo_net
+    restart: unless-stopped
+
+  # ─── AI Advisor Service (Phase 2) ─────────────────────────────
+  ai-advisor:
+    build:
+      context: ./services/ai-advisor
+      dockerfile: Dockerfile
+    container_name: robo_ai_advisor
+    env_file: .env
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - REDIS_URL=redis://redis:6379/5
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+      - PORTFOLIO_SERVICE_URL=http://portfolio:8001
+      - AUTH_SERVICE_URL=http://auth:8000
+    depends_on:
+      redis:
+        condition: service_healthy
+      chromadb:
+        condition: service_started
+    networks:
+      - robo_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: robo_chromadb
+    volumes:
+      - chromadata:/chroma/chroma
+    networks:
+      - robo_net
+    restart: unless-stopped
+
+
+volumes:
+  pgdata:
+  tsdata:
+  redisdata:
+  grafanadata:
+  chromadata:
+
+networks:
+  robo_net:
+    driver: bridge

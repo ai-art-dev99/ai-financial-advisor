@@ -1,0 +1,27 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'auth-service'
+    static_configs:
+      - targets: ['auth:8000']
+    metrics_path: '/metrics'
+
+  - job_name: 'portfolio-service'
+    static_configs:
+      - targets: ['portfolio:8001']
+    metrics_path: '/metrics'
+
+  - job_name: 'market-data-service'
+    static_configs:
+      - targets: ['market-data:8002']
+    metrics_path: '/metrics'
+
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx:80']
