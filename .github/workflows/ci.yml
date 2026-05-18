@@ -1,4 +1,4 @@
-name: CI/CD — Robo Advisor
+name: CI-CD Robo Advisor
 
 on:
   push:
