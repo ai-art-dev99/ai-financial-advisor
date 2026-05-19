@@ -63,6 +63,8 @@ async def upsert_risk_profile(
         )
         db.add(profile)
 
+    await db.flush()
+    await db.refresh(profile)  # populate id and other DB-generated fields
     return profile
 
 

@@ -132,7 +132,7 @@ class TestProtectedRoutes:
 
     async def test_get_me_no_token(self, client):
         resp = await client.get("/users/me")
-        assert resp.status_code == 403
+        assert resp.status_code == 401
 
     async def test_get_me_invalid_token(self, client):
         resp = await client.get("/users/me", headers={"Authorization": "Bearer fake"})

@@ -6,7 +6,6 @@ from sqlalchemy.types import TypeDecorator
 from database import Base, engine
 
 
-# Type که هم PostgreSQL (JSONB) و هم SQLite (JSON) رو support می‌کنه
 class JSONBCompat(TypeDecorator):
     """JSONB for PostgreSQL, JSON for SQLite (tests)"""
     impl = JSON
