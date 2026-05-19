@@ -1,4 +1,4 @@
-name: CI-CD Robo Advisor
+name: CI/CD — Robo Advisor
 
 on:
   push:
@@ -38,7 +38,7 @@ jobs:
 
       - name: Test auth service
         env:
-          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
+          DATABASE_URL: sqlite+aiosqlite:///:memory:
           REDIS_URL: redis://localhost:6379/0
           JWT_SECRET_KEY: test-secret
         run: |
@@ -48,7 +48,7 @@ jobs:
 
       - name: Test portfolio service
         env:
-          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
+          DATABASE_URL: sqlite+aiosqlite:///:memory:
           JWT_SECRET_KEY: test-secret
         run: |
           pip install -r services/portfolio/requirements.txt aiosqlite \
@@ -91,6 +91,9 @@ jobs:
       - name: Set image tag
         id: tag
         run: echo "tag=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Build & push
         uses: docker/build-push-action@v5
