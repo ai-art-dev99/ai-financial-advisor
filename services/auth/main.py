@@ -10,9 +10,7 @@ from config import settings
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: create missing databases first
     await create_databases_if_not_exist()
-    # Then create tables
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
@@ -21,9 +19,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Robo-Advisor — Auth Service",
-    description="Authentication & user management",
     version="1.0.0",
     lifespan=lifespan,
+    root_path="/api/v1/auth",
 )
 
 app.add_middleware(

@@ -20,6 +20,7 @@ app = FastAPI(
     title="Robo-Advisor — Portfolio Service",
     version="1.0.0",
     lifespan=lifespan,
+    root_path="/api/v1/portfolio",
 )
 
 app.add_middleware(

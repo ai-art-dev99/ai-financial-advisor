@@ -7,7 +7,11 @@ import psycopg2
 import psycopg2.extras
 import os
 
-app = FastAPI(title="Robo-Advisor — Market Data Service", version="1.0.0")
+app = FastAPI(
+    title="Robo-Advisor — Market Data Service",
+    version="1.0.0",
+    root_path="/api/v1/market",
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -49,20 +53,13 @@ def health():
 
 
 @app.get("/quotes", response_model=List[QuoteResponse])
-def get_quotes(symbols: str = Query(..., description="Comma-separated symbols e.g. AAPL,MSFT")):
+def get_quotes(symbols: str = Query(...)):
     symbol_list = [s.strip().upper() for s in symbols.split(",")]
-    if len(symbol_list) > 50:
-        raise HTTPException(400, "Max 50 symbols per request")
-
     conn = get_conn()
     cur = conn.cursor()
-    cur.execute(
-        "SELECT * FROM latest_quotes WHERE symbol = ANY(%s) ORDER BY symbol",
-        (symbol_list,)
-    )
+    cur.execute("SELECT * FROM latest_quotes WHERE symbol = ANY(%s)", (symbol_list,))
     rows = cur.fetchall()
-    cur.close()
-    conn.close()
+    cur.close(); conn.close()
     return [QuoteResponse(**row) for row in rows]
 
 
@@ -72,38 +69,27 @@ def get_quote(symbol: str):
     cur = conn.cursor()
     cur.execute("SELECT * FROM latest_quotes WHERE symbol = %s", (symbol.upper(),))
     row = cur.fetchone()
-    cur.close()
-    conn.close()
+    cur.close(); conn.close()
     if not row:
         raise HTTPException(404, f"No quote for {symbol}")
     return QuoteResponse(**row)
 
 
 @app.get("/bars/{symbol}", response_model=List[PriceBar])
-def get_bars(
-    symbol: str,
-    interval: str = Query("1d", regex="^(1m|5m|1h|1d)$"),
-    limit: int = Query(100, le=1000),
-):
+def get_bars(symbol: str, interval: str = Query("1d"), limit: int = Query(100, le=1000)):
     conn = get_conn()
     cur = conn.cursor()
     cur.execute(
-        """SELECT time, symbol, open, high, low, close, volume
-           FROM price_bars
-           WHERE symbol = %s AND interval = %s
-           ORDER BY time DESC
-           LIMIT %s""",
+        "SELECT time, symbol, open, high, low, close, volume FROM price_bars WHERE symbol = %s AND interval = %s ORDER BY time DESC LIMIT %s",
         (symbol.upper(), interval, limit)
     )
     rows = cur.fetchall()
-    cur.close()
-    conn.close()
+    cur.close(); conn.close()
     return [PriceBar(**row) for row in rows]
 
 
 @app.post("/fetch/{symbol}")
 def trigger_fetch(symbol: str):
-    """Manually trigger a quote fetch for a symbol"""
     from tasks import fetch_quotes
     task = fetch_quotes.delay([symbol.upper()])
     return {"task_id": task.id, "symbol": symbol.upper(), "status": "queued"}

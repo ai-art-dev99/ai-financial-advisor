@@ -10,7 +10,6 @@ from routers import chat, ingest
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: initialise ChromaDB collections
     ingestor = DocumentIngestor()
     await ingestor.ensure_collections()
     yield
@@ -18,9 +17,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Robo-Advisor — AI Advisor Service",
-    description="LLM + RAG powered financial advisor using Anthropic Claude",
     version="2.0.0",
     lifespan=lifespan,
+    root_path="/api/v1/ai",
 )
 
 app.add_middleware(
