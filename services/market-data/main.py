@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.types import ASGIApp, Receive, Scope, Send
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
@@ -7,18 +8,26 @@ import psycopg2
 import psycopg2.extras
 import os
 
-app = FastAPI(
-    title="Robo-Advisor — Market Data Service",
-    version="1.0.0",
-    root_path="/api/v1/market",
-)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+class StripPrefixMiddleware:
+    def __init__(self, app: ASGIApp, prefix: str):
+        self.app = app
+        self.prefix = prefix.rstrip("/")
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send):
+        if scope["type"] in ("http", "websocket"):
+            path = scope.get("path", "")
+            if path.startswith(self.prefix):
+                new_path = path[len(self.prefix):] or "/"
+                scope["path"] = new_path
+                scope["raw_path"] = new_path.encode()
+        await self.app(scope, receive, send)
+
+
+app = FastAPI(title="Robo-Advisor — Market Data Service", version="1.0.0")
+
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(StripPrefixMiddleware, prefix="/api/v1/market")
 
 DB_URL = os.getenv("TIMESCALE_URL", "postgresql://robo_user:password@timescale:5432/robo_market")
 

@@ -1,11 +1,27 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+from starlette.types import ASGIApp, Receive, Scope, Send
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from database import engine, Base
 from routers import portfolios, holdings, transactions, performance
 from config import settings
+
+
+class StripPrefixMiddleware:
+    def __init__(self, app: ASGIApp, prefix: str):
+        self.app = app
+        self.prefix = prefix.rstrip("/")
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send):
+        if scope["type"] in ("http", "websocket"):
+            path = scope.get("path", "")
+            if path.startswith(self.prefix):
+                new_path = path[len(self.prefix):] or "/"
+                scope["path"] = new_path
+                scope["raw_path"] = new_path.encode()
+        await self.app(scope, receive, send)
 
 
 @asynccontextmanager
@@ -20,7 +36,6 @@ app = FastAPI(
     title="Robo-Advisor — Portfolio Service",
     version="1.0.0",
     lifespan=lifespan,
-    root_path="/api/v1/portfolio",
 )
 
 app.add_middleware(
@@ -30,6 +45,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(StripPrefixMiddleware, prefix="/api/v1/portfolio")
 
 Instrumentator().instrument(app).expose(app)
 
