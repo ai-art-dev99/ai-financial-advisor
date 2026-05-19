@@ -3,18 +3,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from prometheus_fastapi_instrumentator import Instrumentator
 
-from database import engine, Base
+from database import engine, Base, create_databases_if_not_exist
 from routers import users, auth_router
 from config import settings
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: create tables
+    # Startup: create missing databases first
+    await create_databases_if_not_exist()
+    # Then create tables
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
-    # Shutdown
     await engine.dispose()
 
 
