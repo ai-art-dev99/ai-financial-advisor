@@ -139,7 +139,7 @@ jobs:
           task-definition:            ${{ steps.task-def.outputs.task-definition }}
           service:                    ${{ env.PROJECT }}-${{ matrix.service }}
           cluster:                    ${{ env.PROJECT }}-prod
-          wait-for-service-stability: true
+          wait-for-service-stability: false
 
   deploy-frontend:
     name: Deploy Frontend
