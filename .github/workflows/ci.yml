@@ -157,7 +157,7 @@ jobs:
       - name: Build
         working-directory: services/frontend
         env:
-          VITE_API_URL: https://${{ secrets.API_DOMAIN }}/api/v1
+          VITE_API_URL: https://${{ secrets.API_DOMAIN }}
         run: npm install && npm run build
 
       - name: Configure AWS credentials

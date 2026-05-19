@@ -1,9 +1,14 @@
 import { create } from 'zustand'
 import axios from 'axios'
 
-const API = import.meta.env.VITE_API_URL || '/api/v1'
+const BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080'
 
-const api = axios.create({ baseURL: API })
+const AUTH_API = `${BASE}/api/v1/auth`
+const PORTFOLIO_API = `${BASE}/api/v1/portfolio`
+const MARKET_API = `${BASE}/api/v1/market`
+const AI_API = `${BASE}/api/v1/ai`
+
+const api = axios.create({ baseURL: AUTH_API })
 
 api.interceptors.request.use(cfg => {
   const token = localStorage.getItem('access_token')
@@ -18,7 +23,7 @@ api.interceptors.response.use(
       const refresh = localStorage.getItem('refresh_token')
       if (refresh) {
         try {
-          const { data } = await axios.post(`${API}/auth/refresh`, { refresh_token: refresh })
+          const { data } = await axios.post(`${AUTH_API}/auth/refresh`, { refresh_token: refresh })
           localStorage.setItem('access_token', data.access_token)
           localStorage.setItem('refresh_token', data.refresh_token)
           err.config.headers.Authorization = `Bearer ${data.access_token}`
@@ -32,7 +37,7 @@ api.interceptors.response.use(
   }
 )
 
-export { api }
+export { api, AUTH_API, PORTFOLIO_API, MARKET_API, AI_API }
 
 export const useAuthStore = create((set, get) => ({
   user: null,
@@ -46,7 +51,7 @@ export const useAuthStore = create((set, get) => ({
       const { data } = await api.post('/auth/login', { email, password })
       localStorage.setItem('access_token', data.access_token)
       localStorage.setItem('refresh_token', data.refresh_token)
-      const { data: user } = await api.get('/auth/users/me')
+      const { data: user } = await api.get('/users/me')
       set({ user, isAuthenticated: true, loading: false })
       return true
     } catch (e) {
@@ -61,7 +66,7 @@ export const useAuthStore = create((set, get) => ({
       const { data } = await api.post('/auth/register', { email, full_name: fullName, password })
       localStorage.setItem('access_token', data.access_token)
       localStorage.setItem('refresh_token', data.refresh_token)
-      const { data: user } = await api.get('/auth/users/me')
+      const { data: user } = await api.get('/users/me')
       set({ user, isAuthenticated: true, loading: false })
       return true
     } catch (e) {
@@ -78,7 +83,7 @@ export const useAuthStore = create((set, get) => ({
 
   fetchUser: async () => {
     try {
-      const { data } = await api.get('/auth/users/me')
+      const { data } = await api.get('/users/me')
       set({ user: data })
     } catch { get().logout() }
   },
