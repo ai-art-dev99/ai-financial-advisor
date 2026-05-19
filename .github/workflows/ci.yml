@@ -48,7 +48,7 @@ jobs:
 
       - name: Test portfolio service
         env:
-          DATABASE_URL: sqlite+aiosqlite:///:memory:
+          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
           JWT_SECRET_KEY: test-secret
         run: |
           pip install -r services/portfolio/requirements.txt aiosqlite \
