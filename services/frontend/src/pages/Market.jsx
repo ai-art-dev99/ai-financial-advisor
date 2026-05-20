@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { api } from '../store/authStore'
+import { MARKET_API } from '../store/authStore'
+import axios from 'axios'
 import { TrendingUp, TrendingDown, RefreshCw, Search } from 'lucide-react'
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from 'recharts'
 import clsx from 'clsx'
@@ -64,7 +65,7 @@ export default function Market() {
   const refresh = async () => {
     setLoading(true)
     try {
-      const { data } = await api.get(`/market/quotes?symbols=${WATCHLIST.join(',')}`)
+      const { data } = await axios.get(MARKET_API + '/quotes?symbols=' + WATCHLIST.join(','))
       if (data.length > 0) setQuotes(data)
     } catch { /* use mock */ }
     finally { setLoading(false) }
@@ -75,7 +76,7 @@ export default function Market() {
   )
 
   const gainers = [...quotes].sort((a, b) => b.change_pct - a.change_pct).slice(0, 3)
-  const losers  = [...quotes].sort((a, b) => a.change_pct - b.change_pct).slice(0, 3)
+  const losers = [...quotes].sort((a, b) => a.change_pct - b.change_pct).slice(0, 3)
 
   return (
     <div className="p-8">

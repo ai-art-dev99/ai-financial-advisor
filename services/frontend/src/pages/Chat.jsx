@@ -3,7 +3,9 @@ import { useAuthStore } from '../store/authStore'
 import { Bot, User, Send, Trash2, Loader2, Zap } from 'lucide-react'
 import clsx from 'clsx'
 
-const API = import.meta.env.VITE_API_URL || '/api/v1'
+const BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080'
+const AI_API = BASE + '/api/v1/ai'
+const AUTH_API = BASE + '/api/v1/auth'
 
 function renderMarkdown(text) {
     return text
@@ -99,7 +101,7 @@ export default function Chat() {
         setMessages(prev => [...prev, { role: 'assistant', content: '', streaming: true }])
 
         try {
-            const resp = await fetch(`${API}/ai/chat/message`, {
+            const resp = await fetch(`${AI_API}/chat/message`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -159,7 +161,7 @@ export default function Chat() {
 
     const clearChat = async () => {
         if (sessionId) {
-            await fetch(`${API}/ai/chat/session/${sessionId}`, {
+            await fetch(`${AI_API}/chat/session/${sessionId}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` },
             }).catch(() => { })

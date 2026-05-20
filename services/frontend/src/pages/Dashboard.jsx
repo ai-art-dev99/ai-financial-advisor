@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { api } from '../store/authStore'
+import { api, PORTFOLIO_API } from '../store/authStore'
+import axios from 'axios'
 import {
   AreaChart, Area, PieChart, Pie, Cell,
   ResponsiveContainer, Tooltip, XAxis, YAxis
@@ -66,7 +67,7 @@ export default function Dashboard() {
   const [portfolios, setPortfolios] = useState([])
 
   useEffect(() => {
-    api.get('/portfolio/portfolios/').then(r => setPortfolios(r.data)).catch(() => {})
+    axios.get(PORTFOLIO_API + '/portfolios/', { headers: { Authorization: 'Bearer ' + localStorage.getItem('access_token') } }).then(r => setPortfolios(r.data)).catch(() => { })
   }, [])
 
   const totalValue = MOCK_PERFORMANCE.at(-1).value
@@ -146,10 +147,10 @@ export default function Dashboard() {
               </defs>
               <XAxis dataKey="date" tick={{ fill: '#444', fontSize: 11 }} tickLine={false} axisLine={false} interval={6} />
               <YAxis tick={{ fill: '#444', fontSize: 11 }} tickLine={false} axisLine={false}
-                     tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
+                tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
               <Tooltip content={<CustomTooltip />} />
               <Area type="monotone" dataKey="value" stroke="#c9a84c" strokeWidth={2}
-                    fill="url(#goldGrad)" dot={false} />
+                fill="url(#goldGrad)" dot={false} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -160,14 +161,14 @@ export default function Dashboard() {
           <ResponsiveContainer width="100%" height={160}>
             <PieChart>
               <Pie data={MOCK_ALLOCATION} cx="50%" cy="50%" innerRadius={45} outerRadius={70}
-                   dataKey="value" stroke="none">
+                dataKey="value" stroke="none">
                 {MOCK_ALLOCATION.map((entry, i) => (
                   <Cell key={i} fill={entry.color} />
                 ))}
               </Pie>
               <Tooltip formatter={(v) => `${v}%`}
-                       contentStyle={{ background: '#14141c', border: '1px solid #252535', borderRadius: 8 }}
-                       labelStyle={{ color: '#888' }} itemStyle={{ color: '#c9a84c' }} />
+                contentStyle={{ background: '#14141c', border: '1px solid #252535', borderRadius: 8 }}
+                labelStyle={{ color: '#888' }} itemStyle={{ color: '#c9a84c' }} />
             </PieChart>
           </ResponsiveContainer>
           <div className="space-y-1.5 mt-2">
